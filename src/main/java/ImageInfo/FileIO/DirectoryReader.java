@@ -26,6 +26,7 @@ public class DirectoryReader {
         return Arrays.asList(files);
     }
 
+
     public void readBaseDirectory(String path) {
         List<File> files = readDirectory(path);
         for (File file : files) {
@@ -55,7 +56,7 @@ public class DirectoryReader {
              contents) {
             System.out.println("content.getName() = " + content.getName());
             if (content.isFile()) {
-                //System.out.println("file.getName() = " + content.getName());
+                System.out.println("file.getParent = " + content.getParent());
                 //System.out.println("file.getPath() = " + content.getPath().replace(content.getName(), "namewashere"));
                 filesToProcess.add(content);
             }
@@ -90,7 +91,7 @@ public class DirectoryReader {
             String fileType=Files.probeContentType(path).toLowerCase();
             System.out.println("fileType = " + fileType);
             //aparentemente no reconoce iso como imagen. Pero es mejor asegurarse pidiendo que incluya el tipo.
-            return fileType.contains("image") && containsViewableImageData(fileType);
+            return fileType.contains("image") && containsViewableImageExtension(fileType);
         }
         catch (IOException e) {
             System.err.println("No se pudo leer el archivo "+path);
@@ -100,7 +101,11 @@ public class DirectoryReader {
             return false;
         }
     }
-    private boolean containsViewableImageData(String fileType){
+    private boolean containsViewableImageExtension(String fileType){
         return fileType.contains("jpeg") || fileType.contains("jpg") || fileType.contains("png") || fileType.contains("gif");
+    }
+
+    public static String addTrailingSlashToPath(String path){
+        return path.charAt(path.length()-1)=='/'?path:path+"/";
     }
 }
