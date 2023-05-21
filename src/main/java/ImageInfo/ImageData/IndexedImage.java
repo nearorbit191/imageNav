@@ -1,5 +1,7 @@
 package ImageInfo.ImageData;
 
+import ImageInfo.DataManager;
+
 import java.awt.*;
 import java.io.File;
 import java.io.IOException;
@@ -7,6 +9,7 @@ import java.math.BigInteger;
 import java.nio.file.Files;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.util.ArrayList;
 import java.util.List;
 
 
@@ -14,8 +17,9 @@ public class IndexedImage {
 
     public boolean confirmedImage;
     String hash, nombreArchivo,path;
+    int id;
     File imageFile;
-    List<String> tags;
+    ArrayList<String> tags;
 
     byte[] fileBytes;
 
@@ -26,6 +30,7 @@ public class IndexedImage {
         this.confirmedImage=false;
         confirmAsImage();
 
+
     }
 
     public IndexedImage(String path, String nombreArchivo) {
@@ -35,11 +40,14 @@ public class IndexedImage {
         createImageFile();
         confirmAsImage();
 
+
     }
 
 
+
+
     //pensado al crear desde una base de datos
-    public IndexedImage(String hash, String path, String nombreArchivo, List<String> tags) {
+    public IndexedImage(String hash, String path, String nombreArchivo, ArrayList<String> tags) {
         this.hash = hash;
         this.path = path;
         this.nombreArchivo = nombreArchivo;
@@ -100,7 +108,23 @@ public class IndexedImage {
         return imageFile;
     }
 
+    public String getName() {
+        return this.nombreArchivo;
+    }
+
+    public String getPath() {
+        return path;
+    }
+
     public void setHash(String hash) {
         this.hash = hash;
+    }
+
+    public ArrayList<String> getTags() {
+        return tags;
+    }
+
+    public int getId() {
+        return id;
     }
 }

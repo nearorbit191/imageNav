@@ -1,6 +1,3 @@
-import ImageInfo.DataManager;
-import ImageInfo.FileIO.DirectoryReader;
-import ImageInfo.ImageData.IndexedImage;
 import InputParse.InstructionParser;
 
 public class Main {
