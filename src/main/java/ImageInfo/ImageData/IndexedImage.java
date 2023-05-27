@@ -1,35 +1,32 @@
 package ImageInfo.ImageData;
 
-import ImageInfo.DataManager;
-
-import java.awt.*;
 import java.io.File;
 import java.io.IOException;
 import java.math.BigInteger;
 import java.nio.file.Files;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
-import java.util.List;
+import java.util.Arrays;
 
 
 public class IndexedImage {
 
-    public boolean confirmedImage;
-    String hash, nombreArchivo,path;
-    int id;
-    File imageFile;
-    ArrayList<String> tags;
+    public boolean confirmedImage, previouslyInDb,isDuplicate;
+    private String hash, nombreArchivo,path;
+    private int id;
+    private File imageFile;
+    private ArrayList<String> tags;
 
-    byte[] fileBytes;
+    private byte[] fileBytes;
 
     public IndexedImage(File imageFile) {
+        this.isDuplicate=false;
+        this.previouslyInDb =false;
         this.imageFile = imageFile;
         this.nombreArchivo = imageFile.getName();
         this.path = imageFile.getParent();
         this.confirmedImage=false;
+        this.tags=new ArrayList<>();
         confirmAsImage();
-
 
     }
 
@@ -37,9 +34,9 @@ public class IndexedImage {
         this.path = path;
         this.nombreArchivo = nombreArchivo;
         this.confirmedImage=false;
+        this.tags=new ArrayList<>();
         createImageFile();
         confirmAsImage();
-
 
     }
 
@@ -48,6 +45,7 @@ public class IndexedImage {
 
     //pensado al crear desde una base de datos
     public IndexedImage(String hash, String path, String nombreArchivo, ArrayList<String> tags) {
+        this.previouslyInDb =true;
         this.hash = hash;
         this.path = path;
         this.nombreArchivo = nombreArchivo;
@@ -61,7 +59,9 @@ public class IndexedImage {
         try {
 
             fileBytes = Files.readAllBytes(imageFile.toPath());
-            String hexFileBytes= new BigInteger(1,fileBytes).toString(16).substring(0,9);
+            byte[] subArray= Arrays.copyOfRange(fileBytes,0,12);
+            //usar subarray es mejor. No se si dejarlo asi,lol
+            String hexFileBytes= new BigInteger(1,subArray).toString(16);
             compareToMagicNumbers(hexFileBytes);
 
         }
@@ -76,10 +76,13 @@ public class IndexedImage {
         for (MagicNumbers number:
                 MagicNumbers.values()) {
             if (hexFileBytes.contains(number.magicValues)){
-                //System.out.println("matched: "+number);
+                //System.out.println("matched: "+number+" ("+nombreArchivo+")");
                 confirmedImage=true;
                 break;
             }
+        }
+        if (!confirmedImage){
+                System.out.println("didnt match! "+nombreArchivo);
         }
     }
 
@@ -88,9 +91,6 @@ public class IndexedImage {
         this.imageFile = new File(path+ nombreArchivo);
         System.out.println("imageFile = " + path+ nombreArchivo);
     }
-
-
-
 
 
 
@@ -120,8 +120,16 @@ public class IndexedImage {
         this.hash = hash;
     }
 
+    public void addTag(String newTag){
+        tags.add(newTag);
+    }
+
     public ArrayList<String> getTags() {
         return tags;
+    }
+
+    public void setId(int id) {
+        this.id = id;
     }
 
     public int getId() {

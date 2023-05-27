@@ -11,7 +11,8 @@ import java.util.stream.Collectors;
 
 public class DirectoryReader {
 
-    public ArrayList<File> filesToProcess, directoriesInBaseDirectory;
+    public ArrayList<File> filesToProcess;
+    ArrayList<File> directoriesInBaseDirectory;
     List<File> imagesInDirectory;
 
     public DirectoryReader() {
@@ -20,14 +21,25 @@ public class DirectoryReader {
         imagesInDirectory = new ArrayList<>();
     }
 
-    public List<File> readDirectory(String path) {
+    private List<File> readDirectory(String path) {
         File directory = new File(path);
         File[] files = directory.listFiles();
         return Arrays.asList(files);
     }
 
+    public List<File> nonRecursiveReadDirectory(String path){
+        List<File> files = readDirectory(path);
+        for (File file : files) {
+            if (file.isFile()) {
+                filesToProcess.add(file);
+            }
+        }
+        selectImageFiles();
+        return imagesInDirectory;
+    }
 
-    public void readBaseDirectory(String path) {
+
+    private void readBaseDirectory(String path) {
         List<File> files = readDirectory(path);
         for (File file : files) {
             if (file.isFile()) {
@@ -37,26 +49,30 @@ public class DirectoryReader {
                 directoriesInBaseDirectory.add(file);
             }
         }
-        //filesInDirectory=new ArrayList<>(Arrays.asList(files));
     }
-    public void recursiveReadBaseDirectory(String path) {
+
+
+
+    public List<File> recursiveReadBaseDirectory(String path) {
         List<File> recursiveDirectoryContent;
         readBaseDirectory(path);
         for (File directory:
                 directoriesInBaseDirectory) {
-            System.out.println("directory.getName() = " + directory.getName());
+            //System.out.println("directory.getName() = " + directory.getName());
             recursiveDirectoryContent=readDirectory(directory.getPath());
             recursiveReadDirectory(recursiveDirectoryContent);
         }
-        System.out.println(filesToProcess);
+
+        selectImageFiles();
+        return imagesInDirectory;
     }
 
     private void recursiveReadDirectory(List<File> contents) {
         for (File content:
              contents) {
-            System.out.println("content.getName() = " + content.getName());
+
             if (content.isFile()) {
-                System.out.println("file.getParent = " + content.getParent());
+
                 //System.out.println("file.getPath() = " + content.getPath().replace(content.getName(), "namewashere"));
                 filesToProcess.add(content);
             }
@@ -89,7 +105,7 @@ public class DirectoryReader {
     public boolean isImage(Path path) {
         try {
             String fileType=Files.probeContentType(path).toLowerCase();
-            System.out.println("fileType = " + fileType);
+
             //aparentemente no reconoce iso como imagen. Pero es mejor asegurarse pidiendo que incluya el tipo.
             return fileType.contains("image") && containsViewableImageExtension(fileType);
         }

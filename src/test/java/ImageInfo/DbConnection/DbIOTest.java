@@ -6,6 +6,7 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import java.io.File;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.sql.ResultSet;
@@ -17,12 +18,11 @@ import static org.junit.jupiter.api.Assertions.*;
 class DbIOTest {
     DbIO ioBaseDatos;
     String testDirectory="testStuff/";
-    String testImagesDirectory="testSamples/";
+    String testImagesDirectory=testDirectory+"image/";
 
     @BeforeEach
     void setUp() {
-        ioBaseDatos=new DbIO();
-        ioBaseDatos.createDatabase(testDirectory);
+        ioBaseDatos=new DbIO(testDirectory);
 
 
     }
@@ -31,9 +31,10 @@ class DbIOTest {
     void tearDown() {
 
         try {
-            ioBaseDatos.connection.close();
-            ioBaseDatos=null;
+            ioBaseDatos.closeConnection();
+
             Files.deleteIfExists(Path.of(testDirectory+"nice.db"));
+            Files.deleteIfExists(Path.of(testDirectory+"db.check"));
         }
         catch (Exception e){
             System.err.println("no se pudo borrar");
@@ -93,9 +94,9 @@ class DbIOTest {
     @Test
     void clavesForaneasFuncionanValores(){
         boolean valores=false;
-        DataManager man=new DataManager();
-        IndexedImage testImage=new IndexedImage(testImagesDirectory+"jpg/","gura.jpg");
-        man.hashSetImage(testImage);
+
+        IndexedImage testImage=new IndexedImage(new File(testImagesDirectory+"mech1.png"));
+        DataManager.hashSetImage(testImage);
         try {
             String sqlInTag="insert into etiqueta(des_etiqueta) values('weapon');";
             ioBaseDatos.insertImageIntoDatabase(testImage);
@@ -114,5 +115,29 @@ class DbIOTest {
             System.out.println("bad at "+e.getMessage());
         }
         assertTrue(valores);
+    }
+
+    @Test
+    void recuperarImagenPreviamenteGuardadas(){
+        boolean valores=false;
+
+        IndexedImage testImage=new IndexedImage(new File(testImagesDirectory+"mech1.png"));
+        IndexedImage recreatedImage=new IndexedImage(new File(testImagesDirectory+"mech1.png"));
+        DataManager.hashSetImage(testImage);
+        DataManager.hashSetImage(recreatedImage);
+        try {
+            testImage.addTag("weapon");
+            testImage.addTag("mecha");
+
+            ioBaseDatos.insertImageIntoDatabase(testImage);
+            ioBaseDatos.associateTagsToImage(testImage);
+
+            ioBaseDatos.rebuildImage(recreatedImage);
+
+        }
+        catch (SQLException e){
+            System.out.println("bad at "+e.getMessage());
+        }
+        assertEquals(testImage.getId(),recreatedImage.getId());
     }
 }
