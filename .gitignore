@@ -79,3 +79,4 @@ fabric.properties
 
 #cosas del proyecto
 testSamples/**
+artifacts/**

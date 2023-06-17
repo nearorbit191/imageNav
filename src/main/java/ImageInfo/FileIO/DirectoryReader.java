@@ -24,6 +24,7 @@ public class DirectoryReader {
     private List<File> readDirectory(String path) {
         File directory = new File(path);
         File[] files = directory.listFiles();
+        if (files==null) files=new File[0];
         return Arrays.asList(files);
     }
 

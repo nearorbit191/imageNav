@@ -10,13 +10,14 @@ import java.util.Arrays;
 
 public class IndexedImage {
 
-    public boolean confirmedImage, previouslyInDb,isDuplicate;
+    public boolean  previouslyInDb,isDuplicate;
+    public boolean confirmedImage;
     private String hash, nombreArchivo,path;
     private int id;
-    private File imageFile;
+    public File imageFile;
     private ArrayList<String> tags;
 
-    private byte[] fileBytes;
+    //public byte[] fileBytes;
 
     public IndexedImage(File imageFile) {
         this.isDuplicate=false;
@@ -26,7 +27,7 @@ public class IndexedImage {
         this.path = imageFile.getParent();
         this.confirmedImage=false;
         this.tags=new ArrayList<>();
-        confirmAsImage();
+        //confirmAsImage();
 
     }
 
@@ -36,7 +37,7 @@ public class IndexedImage {
         this.confirmedImage=false;
         this.tags=new ArrayList<>();
         createImageFile();
-        confirmAsImage();
+        //confirmAsImage();
 
     }
 
@@ -58,7 +59,7 @@ public class IndexedImage {
     private void confirmAsImage() {
         try {
 
-            fileBytes = Files.readAllBytes(imageFile.toPath());
+            byte[] fileBytes = Files.readAllBytes(imageFile.toPath());
             byte[] subArray= Arrays.copyOfRange(fileBytes,0,12);
             //usar subarray es mejor. No se si dejarlo asi,lol
             String hexFileBytes= new BigInteger(1,subArray).toString(16);
@@ -100,9 +101,9 @@ public class IndexedImage {
         return hash;
     }
 
-    public byte[] getFileBytes() {
-        return fileBytes;
-    }
+    //public byte[] getFileBytes() {
+    //    return fileBytes;
+    //}
 
     public File getImageFile() {
         return imageFile;
@@ -122,6 +123,10 @@ public class IndexedImage {
 
     public void addTag(String newTag){
         tags.add(newTag);
+    }
+
+    public void removeTag(String remTag){
+        tags.remove(remTag);
     }
 
     public ArrayList<String> getTags() {

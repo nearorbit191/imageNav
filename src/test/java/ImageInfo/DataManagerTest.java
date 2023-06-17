@@ -1,5 +1,6 @@
 package ImageInfo;
 
+import Housekeeping.HashCalculator;
 import ImageInfo.ImageData.IndexedImage;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -48,7 +49,7 @@ class DataManagerTest {
     void hashFileMech1() {
         String thisFile="mech1.png";
         String hashMech1="9860A3C0B814D28D6AE11EBA1E3BEAEB9BE8E860971E6EA81F4378CDE88B4719".toLowerCase();
-        String calculatedHash=DataManager.hashFile(new File(imagesDirectory+thisFile));
+        String calculatedHash= HashCalculator.hashFile(new File(imagesDirectory+thisFile));
         assertEquals(hashMech1, calculatedHash);
     }
 

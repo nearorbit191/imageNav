@@ -1,9 +1,11 @@
 package InputParse;
 
 import CustomExceptions.UnknownInstructionException;
+import Housekeeping.NavLogger;
 import ImageInfo.DataManager;
 import sun.misc.Signal;
 
+import java.nio.file.Path;
 import java.util.Scanner;
 
 
@@ -16,6 +18,7 @@ public class InstructionParser {
     public InstructionParser(String path){
         Signal.handle(new Signal("INT"),signal->unexpectedShutdown());
         //esto debera hacer lo necesario para evitar que un cierre forzado deje sin actualizar los archivos y deje los registros correspondientes
+        NavLogger.logInfo("starting session at "+ Path.of(pathToUse).toAbsolutePath());
 
         allGood=true;
         teclado = new Scanner(System.in);
@@ -25,7 +28,7 @@ public class InstructionParser {
 
     public void startProgram(){
         if (allGood) {
-            System.out.println("Welcome to imageNav. Type a command to start, or use 'help' for more information");
+            System.out.println("Welcome to NICE. Type a command to start, or use 'help' for more information");
 
             datManager.readDirectoryInit();
         }
@@ -72,7 +75,7 @@ public class InstructionParser {
                 candidate = instruction.length==1?InstructionToken.RECURSIVE_CHECK:InstructionToken.RECURSIVE;
                 if (candidate==InstructionToken.RECURSIVE){
                     if (instruction[1].equals("on")||instruction[1].equals("off")){
-                        boolean newValue=instruction[1].equals("on")?true:false;
+                        boolean newValue= instruction[1].equals("on");
                         datManager.setRecursiveMode(newValue);
                         System.out.println("recursive is now: " + datManager.isRecursiveMode());
                     }
@@ -105,11 +108,15 @@ public class InstructionParser {
             case "dupes":
                 System.out.println("duplicates found: "+datManager.amountOfDuplicates());
                 return;
+            case "lazy":
+                lazymode();
+                return;
             case "search":
                 searchForImages(instruction[1]);
                 return;
             case "exit":
                 System.out.println("bye.");
+                NavLogger.logInfo("clean exit");
                 datManager.tearDown();
                 System.exit(0);
                 return;
@@ -118,6 +125,12 @@ public class InstructionParser {
 
         }
         throw new IllegalArgumentException("bad argument count for "+instruction[0]+" expected: "+candidate.argumentCount);
+    }
+
+    private void lazymode(){
+        System.out.println("enabling lazy mode");
+        //datManager.imagesInDir.stream().forEach(image->image.fileBytes=null);
+        System.gc();
     }
 
     private void listFilesInDir(){
@@ -195,8 +208,10 @@ public class InstructionParser {
 
 
     private static void unexpectedShutdown(){
+        NavLogger.logInfo("señal de interrupción recibida");
         datManager.tearDown();
         System.out.println("\nexec unexpected shutdown");
+        NavLogger.logInfo("apagado por interrupción");
         System.exit(1);
     }
 

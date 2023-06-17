@@ -1,6 +1,6 @@
 package ImageInfo.DbConnection;
 
-import ImageInfo.DataManager;
+import Housekeeping.HashCalculator;
 import ImageInfo.ImageData.IndexedImage;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -15,14 +15,14 @@ import java.sql.SQLException;
 import static org.junit.jupiter.api.Assertions.*;
 
 
-class DbIOTest {
-    DbIO ioBaseDatos;
+class DbEssentialTest {
+    DbEssential ioBaseDatos;
     String testDirectory="testStuff/";
     String testImagesDirectory=testDirectory+"image/";
 
     @BeforeEach
     void setUp() {
-        ioBaseDatos=new DbIO(testDirectory);
+        ioBaseDatos=new DbEssential(testDirectory);
 
 
     }
@@ -96,7 +96,7 @@ class DbIOTest {
         boolean valores=false;
 
         IndexedImage testImage=new IndexedImage(new File(testImagesDirectory+"mech1.png"));
-        DataManager.hashSetImage(testImage);
+        HashCalculator.hashSetImage(testImage);
         try {
             String sqlInTag="insert into etiqueta(des_etiqueta) values('weapon');";
             ioBaseDatos.insertImageIntoDatabase(testImage);
@@ -123,8 +123,8 @@ class DbIOTest {
 
         IndexedImage testImage=new IndexedImage(new File(testImagesDirectory+"mech1.png"));
         IndexedImage recreatedImage=new IndexedImage(new File(testImagesDirectory+"mech1.png"));
-        DataManager.hashSetImage(testImage);
-        DataManager.hashSetImage(recreatedImage);
+        HashCalculator.hashSetImage(testImage);
+        HashCalculator.hashSetImage(recreatedImage);
         try {
             testImage.addTag("weapon");
             testImage.addTag("mecha");

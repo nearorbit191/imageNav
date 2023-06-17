@@ -1,6 +1,6 @@
 package ImageInfo.DbConnection;
 
-import ImageInfo.DataManager;
+import Housekeeping.HashCalculator;
 import ImageInfo.ImageData.IndexedImage;
 import InputParse.InstructionParser;
 
@@ -12,30 +12,38 @@ import java.util.ArrayList;
 import java.util.Set;
 import java.util.TreeSet;
 
-public class DbIO {
-    Connection connection;
+public class DbEssential {
+    private Connection connection;
     private Statement statement;
     private String dbPath;
     private String dirpath;
     private String dbHash;
+    private DbPrepStatementSet prepStatements;
+
+
 
     private Set<String> hashesInDatabase;
+    //HashCalculator hashCalc;
 
 
-    public DbIO(String dirPath) {
+    public DbEssential(String dirPath) {
         hashesInDatabase = new TreeSet<>();
+        //hashCalc=new HashCalculator();
         this.dbPath =dirPath+"nice.db";
         this.dirpath=dirPath;
         createDBifNotExistsAndConnect();
+        prepStatements=new DbPrepStatementSet(this.connection);
         if (statement!=null) getExistingHashes();
     }
+
+
 
     void createDBifNotExistsAndConnect() {
         if (!Files.exists(Path.of(dbPath))) {
             createDatabase(dbPath);
         }
         else {
-            dbHash= DataManager.hashFile(new File(dbPath));
+            dbHash= HashCalculator.hashFile(new File(dbPath));
             if (DbManager.checkFileExists(dirpath) && DbManager.isDatabaseValid(dirpath,this.dbHash)) {
                 try {
                     connectToDatabase(dbPath);
@@ -50,7 +58,7 @@ public class DbIO {
                 System.err.println("Current database hash: " + dbHash);
                 InstructionParser.somethingWentWrong("checkfile and db mismatch");
             }
-    }
+        }
 
 
     }
@@ -98,6 +106,7 @@ public class DbIO {
         }
     }
 
+
     public void executeUpdateStatement(String sql) throws SQLException {
         statement.executeUpdate(sql);
     }
@@ -105,6 +114,7 @@ public class DbIO {
     public ResultSet executeQueryStatement(String sql) throws SQLException {
         return statement.executeQuery(sql);
     }
+
 
     private void createInitialDatabase() throws SQLException {
         createBaseTables();
@@ -138,7 +148,11 @@ public class DbIO {
 
         String sqlInstruction="insert into archivo(hash,nombre_archivo,ruta_archivo,id_estado_archivo) values('";
         sqlInstruction+=image.getHash()+"','"+image.getName()+"','"+image.getPath()+"',1);";
-        executeUpdateStatement(sqlInstruction);
+        //executeUpdateStatement(sqlInstruction);
+        prepStatements.insertNewImageStatement.setString(1,image.getHash());
+        prepStatements.insertNewImageStatement.setString(2,image.getName());
+        prepStatements.insertNewImageStatement.setString(3,image.getPath());
+        prepStatements.insertNewImageStatement.executeUpdate();
         image.setId(retrieveImageId(image));
         return true;
     }
@@ -164,7 +178,9 @@ public class DbIO {
 
 
     private int retrieveImageId(IndexedImage image) throws SQLException{
-        ResultSet idResult =executeQueryStatement("select id_archivo from archivo where hash='"+image.getHash()+"';");
+        //ResultSet idResult =executeQueryStatement("select id_archivo from archivo where hash='"+image.getHash()+"';");
+        prepStatements.retrieveImageIdStatement.setString(1,image.getHash());
+        ResultSet idResult =prepStatements.retrieveImageIdStatement.executeQuery();
         if (idResult.next()){
             return idResult.getInt("id_archivo");
         }
@@ -183,7 +199,7 @@ public class DbIO {
         if (dupeAlreadyRegistered(dupe)) return;
         String statement="insert into duplicado(ruta_duplicado,nombre_duplicado,id_archivo) values('"+dupe.getPath()+"','"+dupe.getName()+"','"+originalID+"');";
         executeUpdateStatement(statement);
-        //System.out.println("[image "+dupe.getName()+" is a duplicate of "+originalID+"]");
+        System.out.println("[image "+dupe.getName()+" is a duplicate of "+originalID+"]");
 
     }
 
@@ -203,7 +219,8 @@ public class DbIO {
 
     private void restoreSavedtags(IndexedImage targetImage) throws SQLException{
         String sqlRetrieveTags="select etiq.des_etiqueta from etiqueta etiq, etiqueta_clasifica_archivo clas where clas.id_archivo="+targetImage.getId()+" and clas.id_etiqueta=etiq.id_etiqueta;";
-        ResultSet result=executeQueryStatement(sqlRetrieveTags);
+        prepStatements.retrieveImageTagsStatement.setInt(1,targetImage.getId());
+        ResultSet result=prepStatements.retrieveImageTagsStatement.executeQuery();
         while (result.next()){
             targetImage.addTag(result.getString("des_etiqueta"));
         }
@@ -213,16 +230,18 @@ public class DbIO {
     public void associateTagsToImage(IndexedImage image) throws SQLException{
         String[] tagsInDB=getAllTags();
         if (tagsInDB==null) throw new SQLException();
-        String baseStatement="insert into etiqueta_clasifica_archivo(id_archivo,id_etiqueta) values(";
+        //String baseStatement="insert into etiqueta_clasifica_archivo(id_archivo,id_etiqueta) values(";
         ArrayList<String> imgTags = image.getTags();
         ArrayList<String> newTags=new ArrayList<>(imgTags);
         if (!imgTags.isEmpty()){
-            for (int i = 0; i < tagsInDB.length; i++) {
-                for (int j = 0; j < imgTags.size(); j++) {
-                    if (imgTags.get(j).equals(tagsInDB[i])){
-                        String tagStatement=baseStatement+retrieveImageId(image)+","+getTagId(tagsInDB[i].replace("'","''"))+");";
-                        addIfNotAlreadyIn(tagStatement);
-                        newTags.remove(imgTags.get(j));
+            for (String tagInDb:
+                 tagsInDB) {
+                for (String imageTag : imgTags) {
+                    if (imageTag.equals(tagInDb)) {
+                        int imageId = retrieveImageId(image);
+                        int tagId = getTagId(tagInDb);
+                        addIfNotAlreadyIn(imageId, tagId);
+                        newTags.remove(imageTag);
                     }
                 }
             }
@@ -230,9 +249,32 @@ public class DbIO {
         }
     }
 
-    private void addIfNotAlreadyIn(String tagStatement) throws SQLException{
+    /*private void associateWithAlreadyIndexedTags(){
+        for (int i = 0; i < tagsInDB.length; i++) {
+            for (int j = 0; j < imgTags.size(); j++) {
+                if (imgTags.get(j).equals(tagsInDB[i])){
+                    String tagStatement=baseStatement+retrieveImageId(image)+","+getTagId(tagsInDB[i].replace("'","''"))+");";
+                    addIfNotAlreadyIn(tagStatement);
+                    newTags.remove(imgTags.get(j));
+                }
+            }
+        }
+    }*/
+
+    public void removeTagFromImage(int imageId,String removedTag) throws SQLException{
+        int tagId=getTagId(removedTag);
+
+        prepStatements.removeTagFromImageStatement.setInt(1,tagId);
+        prepStatements.removeTagFromImageStatement.setInt(2,imageId);
+        prepStatements.removeTagFromImageStatement.executeUpdate();
+
+    }
+
+    private void addIfNotAlreadyIn(int imageId,int tagId) throws SQLException{
         try {
-            executeUpdateStatement(tagStatement);
+            prepStatements.insertImageTagRelationStatement.setInt(1,imageId);
+            prepStatements.insertImageTagRelationStatement.setInt(2,tagId);
+            prepStatements.insertImageTagRelationStatement.executeUpdate();
         }
         catch (SQLException sqlex){
             if (sqlex.getMessage().toLowerCase().contains("primary")){
@@ -250,15 +292,22 @@ public class DbIO {
         String insertIntoRelation="insert into etiqueta_clasifica_archivo(id_archivo,id_etiqueta) values(";
         for (String tag:
              newTags) {
-            executeUpdateStatement(newTagQuery +tag.replace("'","''")+"');");
+            prepStatements.insertNewTagStatement.setString(1,tag);
+            prepStatements.insertNewTagStatement.executeUpdate();
+            //executeUpdateStatement(newTagQuery +tag.replace("'","''")+"');");
             int tagId=getTagId(tag);
-            executeUpdateStatement(insertIntoRelation+imgId+","+tagId+");");
+            prepStatements.insertImageTagRelationStatement.setInt(1,imgId);
+            prepStatements.insertImageTagRelationStatement.setInt(2,tagId);
+            prepStatements.insertImageTagRelationStatement.executeUpdate();
+            //executeUpdateStatement(insertIntoRelation+imgId+","+tagId+");");
         }
 
     }
 
     private int getTagId(String tag) throws SQLException {
-        ResultSet idResult =executeQueryStatement("select id_etiqueta from etiqueta where des_etiqueta='"+tag+"';");
+        //ResultSet idResult =executeQueryStatement("select id_etiqueta from etiqueta where des_etiqueta='"+tag+"';");
+        prepStatements.retrieveTagIdStatement.setString(1,tag);
+        ResultSet idResult =prepStatements.retrieveTagIdStatement.executeQuery();
         if (idResult.next()){
             return idResult.getInt("id_etiqueta");
         }
@@ -282,6 +331,14 @@ public class DbIO {
 
     }
 
+    public void beginTransaction() throws SQLException{
+        executeUpdateStatement("BEGIN;");
+    }
+
+    public void commitTransaction(IndexedImage potentialFailureImage) throws SQLException{
+        executeUpdateStatement("COMMIT;");
+    }
+
     public void rollbackTransaction(IndexedImage potentialFailureImage){
         System.err.println("ran into problems with image "+potentialFailureImage.getName()+", hash: "+potentialFailureImage.getHash());
         try{
@@ -298,7 +355,7 @@ public class DbIO {
     }
 
     public void updateHash(){
-        String newHash=DataManager.hashFile(new File(dbPath));
+        String newHash=HashCalculator.hashFile(new File(dbPath));
         if (!newHash.equals("")) {
             this.dbHash=newHash;
         }

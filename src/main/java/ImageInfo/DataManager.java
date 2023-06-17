@@ -1,10 +1,10 @@
 package ImageInfo;
 
-import ImageInfo.DbConnection.DbIO;
+import Housekeeping.HashCalculator;
+import ImageInfo.DbConnection.DbEssential;
 import ImageInfo.FileIO.DirectoryReader;
 import ImageInfo.ImageData.IndexedImage;
 import InputParse.InstructionParser;
-import org.junit.jupiter.api.Test;
 
 
 import java.awt.*;
@@ -17,25 +17,24 @@ import java.security.NoSuchAlgorithmException;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
-import java.util.stream.Collectors;
 
 public class DataManager{
     private static MessageDigest hashCalculator;
-    DbIO dbio;
+    static Lock lock=new ReentrantLock();
+    DbEssential dbio;
 
     DirectoryReader directoryRead;
 
     private List<File> goodFilesInDir;
     public List<IndexedImage> imagesInDir;
-    public static final int amountToStartUsingThreads=100;
+    public static final int amountToStartUsingThreads=200;
     String workPath;
-    static Lock lock=new ReentrantLock();
 
+    //HashCalculator hashCalc;
 
 
     private boolean recursiveMode;
@@ -45,16 +44,19 @@ public class DataManager{
         directoryRead = new DirectoryReader();
         recursiveMode=true;
         this.workPath=workPath;
-        dbio = new DbIO(workPath);
+        dbio = new DbEssential(workPath);
+        //hashCalc=new HashCalculator();
     }
 
 
     public void readDirectoryInit(){
-        System.out.print("reading and processing images in directory, please wait...\r");
+        System.out.println("reading and processing images in directory, please wait...");
+
         readDirectory();
         //createIndexedImages();
         threadedCreateIndexedImages();
-        System.out.print("done processing. Inserting into database...\r");
+        System.out.println("done processing. Inserting into database...");
+
         insertImagesIntoDatabase();
         System.out.println("done! ready to go!");
     }
@@ -74,6 +76,7 @@ public class DataManager{
             createIndexedImages(goodFilesInDir);
             return;
         }
+        long startTime=System.nanoTime();
 
         Runnable secondHalf = ()->{
                 createIndexedImages(goodFilesInDir.subList(fileListHalf(),goodFilesInDir.size()));
@@ -85,6 +88,8 @@ public class DataManager{
             helpy.join();
         }
         catch (Exception e){}
+
+        System.out.println("[DEBUG] elapsed:"+(System.nanoTime()-startTime));
 
 
 
@@ -99,7 +104,7 @@ public class DataManager{
         for (File imageFile:
              subsetList) {
             IndexedImage newImage = new IndexedImage(imageFile);
-            hashSetImage(newImage);
+            HashCalculator.hashSetImage(newImage);
             imagesInDir.add(newImage);
 
         }
@@ -124,10 +129,10 @@ public class DataManager{
 
     private void imageInitialInsert(IndexedImage image){
         try{
-            dbio.executeUpdateStatement("BEGIN;");
+            dbio.beginTransaction();
             boolean insertedNow=dbio.insertImageIntoDatabase(image);
 
-            dbio.executeUpdateStatement("COMMIT;");
+            dbio.commitTransaction(image);
             if (insertedNow) {
                 dbio.updateHash();
             }
@@ -219,16 +224,35 @@ public class DataManager{
         IndexedImage targetImage=imagesInDir.get(imagePos);
         for (String tag:
              sanitizedTags) {
-            if (!targetImage.getTags().contains(tag) && (!tag.equals("") || !tag.equals(" "))) targetImage.addTag(tag);
+            if (tag.charAt(0)=='-') {
+                removeTag(targetImage, tag);
+            }
+            else if (!targetImage.getTags().contains(tag) && (!tag.equals("") || !tag.equals(" "))){
+                targetImage.addTag(tag);
+            }
         }
         writeTagsToDb(targetImage);
     }
 
+    private void removeTag(IndexedImage targetImage,String removedTag){
+        removedTag=removedTag.replace("-","");
+        try{
+            dbio.beginTransaction();
+            dbio.removeTagFromImage(targetImage.getId(),removedTag);
+            dbio.commitTransaction(targetImage);
+            targetImage.removeTag(removedTag);
+        }
+        catch (SQLException e){
+            dbio.rollbackTransaction(targetImage);
+        }
+
+    }
+
     private void writeTagsToDb(IndexedImage targetImage){
         try{
-            dbio.executeUpdateStatement("BEGIN;");
+            dbio.beginTransaction();
             dbio.associateTagsToImage(targetImage);
-            dbio.executeUpdateStatement("COMMIT;");
+            dbio.commitTransaction(targetImage);
         }
         catch (SQLException sqle){
             dbio.rollbackTransaction(targetImage);
@@ -285,7 +309,7 @@ public class DataManager{
     public static void hashSetImage(IndexedImage image) {
         lock.lock();
         try{
-            image.setHash(calculateHash(image.getFileBytes()));
+            image.setHash(calculateHash(null));
         } finally {
             lock.unlock();
         }

@@ -19,6 +19,7 @@ public class Main {
         String workPath= DirectoryReader.addTrailingSlashToPath(args[0]);
         workPath=workPath.replace("\\\\","/");
 
+
         InstructionParser parser = new InstructionParser(workPath);
         parser.startProgram();
     }
