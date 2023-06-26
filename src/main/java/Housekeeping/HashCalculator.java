@@ -1,6 +1,5 @@
 package Housekeeping;
 
-import ImageInfo.ImageData.IndexedImage;
 
 import java.io.File;
 import java.io.IOException;
@@ -12,16 +11,13 @@ import java.security.NoSuchAlgorithmException;
 public class HashCalculator {
 
 
-    public HashCalculator() {
-
-    }
-    public static void hashSetImage(IndexedImage image) {
+    public static String hashImage(File imageFile) {
         try {
-            image.setHash(calculateHash(Files.readAllBytes(image.imageFile.toPath())));
+            return calculateHash(Files.readAllBytes(imageFile.toPath()));
         }
         catch (Exception e){
             System.err.println("couldn't read file");
-
+            return null;
         }
 
 

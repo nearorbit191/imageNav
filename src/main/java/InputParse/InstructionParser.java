@@ -18,7 +18,7 @@ public class InstructionParser {
     public InstructionParser(String path){
         Signal.handle(new Signal("INT"),signal->unexpectedShutdown());
         //esto debera hacer lo necesario para evitar que un cierre forzado deje sin actualizar los archivos y deje los registros correspondientes
-        NavLogger.logInfo("starting session at "+ Path.of(pathToUse).toAbsolutePath());
+        NavLogger.logInfo("starting session at "+ (Path.of(path)).toAbsolutePath());
 
         allGood=true;
         teclado = new Scanner(System.in);

@@ -1,6 +1,7 @@
 package ImageInfo.DbConnection;
 
 import Housekeeping.HashCalculator;
+import Housekeeping.NavLogger;
 import ImageInfo.ImageData.IndexedImage;
 import InputParse.InstructionParser;
 
@@ -142,7 +143,7 @@ public class DbEssential {
     public boolean insertImageIntoDatabase(IndexedImage image) throws SQLException{
         if (alreadyInDatabase(image)) return false;
         if (isDuplicado(image)){
-            image.isDuplicate=true;
+            image.setDuplicate(true);
             return false;
         }
 
@@ -240,6 +241,7 @@ public class DbEssential {
                     if (imageTag.equals(tagInDb)) {
                         int imageId = retrieveImageId(image);
                         int tagId = getTagId(tagInDb);
+                        NavLogger.logInfo("attempting to associate image "+imageId+" with tag "+tagId);
                         addIfNotAlreadyIn(imageId, tagId);
                         newTags.remove(imageTag);
                     }
@@ -263,6 +265,7 @@ public class DbEssential {
 
     public void removeTagFromImage(int imageId,String removedTag) throws SQLException{
         int tagId=getTagId(removedTag);
+        NavLogger.logInfo("attempting to remove tag "+tagId+" from image "+imageId);
 
         prepStatements.removeTagFromImageStatement.setInt(1,tagId);
         prepStatements.removeTagFromImageStatement.setInt(2,imageId);
@@ -294,8 +297,10 @@ public class DbEssential {
              newTags) {
             prepStatements.insertNewTagStatement.setString(1,tag);
             prepStatements.insertNewTagStatement.executeUpdate();
+            NavLogger.logInfo("attempting to insert new tag");
             //executeUpdateStatement(newTagQuery +tag.replace("'","''")+"');");
             int tagId=getTagId(tag);
+            NavLogger.logInfo("attempting to associate image "+imgId+" with new tag "+tagId);
             prepStatements.insertImageTagRelationStatement.setInt(1,imgId);
             prepStatements.insertImageTagRelationStatement.setInt(2,tagId);
             prepStatements.insertImageTagRelationStatement.executeUpdate();
@@ -346,6 +351,7 @@ public class DbEssential {
         }
         catch(Exception e){
             InstructionParser.somethingWentWrong("could not rollback a transaction, something must be wrong with the connection?");
+            NavLogger.logFatal("failed to rollback. Maybe the I/O reached a limit?");
         }
     }
 

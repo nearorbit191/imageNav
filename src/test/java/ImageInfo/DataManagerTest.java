@@ -86,7 +86,7 @@ class DataManagerTest {
         int numberOfImagesInDir =directoryFile.listFiles().length-amountOfNonImageFiles;
         try{
             String sqlGetNumberOfFilesInDB="select COUNT(nombre_archivo) as total_archivos from archivo;";
-            ResultSet result=dataMan.dbio.executeQueryStatement(sqlGetNumberOfFilesInDB);
+            ResultSet result=dataMan.dbio.dbEssential.executeQueryStatement(sqlGetNumberOfFilesInDB);
             if (result.next()){
                 filesInDb=result.getInt("total_archivos");
             }

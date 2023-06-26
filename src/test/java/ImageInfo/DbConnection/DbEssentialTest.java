@@ -96,7 +96,6 @@ class DbEssentialTest {
         boolean valores=false;
 
         IndexedImage testImage=new IndexedImage(new File(testImagesDirectory+"mech1.png"));
-        HashCalculator.hashSetImage(testImage);
         try {
             String sqlInTag="insert into etiqueta(des_etiqueta) values('weapon');";
             ioBaseDatos.insertImageIntoDatabase(testImage);
@@ -123,8 +122,6 @@ class DbEssentialTest {
 
         IndexedImage testImage=new IndexedImage(new File(testImagesDirectory+"mech1.png"));
         IndexedImage recreatedImage=new IndexedImage(new File(testImagesDirectory+"mech1.png"));
-        HashCalculator.hashSetImage(testImage);
-        HashCalculator.hashSetImage(recreatedImage);
         try {
             testImage.addTag("weapon");
             testImage.addTag("mecha");

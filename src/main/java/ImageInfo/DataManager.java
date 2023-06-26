@@ -1,31 +1,20 @@
 package ImageInfo;
 
-import Housekeeping.HashCalculator;
-import ImageInfo.DbConnection.DbEssential;
+import Housekeeping.NavLogger;
+
+import ImageInfo.DbConnection.DbInOut;
 import ImageInfo.FileIO.DirectoryReader;
 import ImageInfo.ImageData.IndexedImage;
-import InputParse.InstructionParser;
-
 
 import java.awt.*;
 import java.io.File;
 import java.io.IOException;
-import java.math.BigInteger;
-import java.nio.file.Files;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
-import java.sql.ResultSet;
-import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
-import java.util.concurrent.locks.Lock;
-import java.util.concurrent.locks.ReentrantLock;
 
 public class DataManager{
-    private static MessageDigest hashCalculator;
-    static Lock lock=new ReentrantLock();
-    DbEssential dbio;
+    DbInOut dbio;
 
     DirectoryReader directoryRead;
 
@@ -44,7 +33,7 @@ public class DataManager{
         directoryRead = new DirectoryReader();
         recursiveMode=true;
         this.workPath=workPath;
-        dbio = new DbEssential(workPath);
+        dbio = new DbInOut(workPath);
         //hashCalc=new HashCalculator();
     }
 
@@ -53,7 +42,6 @@ public class DataManager{
         System.out.println("reading and processing images in directory, please wait...");
 
         readDirectory();
-        //createIndexedImages();
         threadedCreateIndexedImages();
         System.out.println("done processing. Inserting into database...");
 
@@ -87,7 +75,9 @@ public class DataManager{
         try{
             helpy.join();
         }
-        catch (Exception e){}
+        catch (Exception e){
+            NavLogger.logError("Failed to join thread?");
+        }
 
         System.out.println("[DEBUG] elapsed:"+(System.nanoTime()-startTime));
 
@@ -104,7 +94,6 @@ public class DataManager{
         for (File imageFile:
              subsetList) {
             IndexedImage newImage = new IndexedImage(imageFile);
-            HashCalculator.hashSetImage(newImage);
             imagesInDir.add(newImage);
 
         }
@@ -113,7 +102,7 @@ public class DataManager{
     private void insertImagesIntoDatabase(){
         for (IndexedImage image :
              imagesInDir) {
-            imageInitialInsert(image);
+            dbio.imageInitialInsert(image);
         }
         dbio.writeHash();
         cleanupDupesInList();
@@ -123,39 +112,11 @@ public class DataManager{
     private void cleanupDupesInList(){
         for (IndexedImage image:
              imagesInDir) {
-            if (image.isDuplicate) imagesInDir.remove(image);
+            if (image.isDuplicate()) imagesInDir.remove(image);
         }
     }
 
-    private void imageInitialInsert(IndexedImage image){
-        try{
-            dbio.beginTransaction();
-            boolean insertedNow=dbio.insertImageIntoDatabase(image);
 
-            dbio.commitTransaction(image);
-            if (insertedNow) {
-                dbio.updateHash();
-            }
-            else{
-                loadFromDb(image);
-            }
-        }
-        catch(SQLException sqlex){
-            dbio.rollbackTransaction(image);
-            dbio.updateHash();
-        }
-    }
-
-    private void loadFromDb(IndexedImage targetImage){
-        try{
-            dbio.rebuildImage(targetImage);
-        }
-        catch (SQLException sqlex){
-            System.out.println(sqlex.getMessage());
-
-            InstructionParser.somethingWentWrong("could not retrieve already inserted image");
-        }
-    }
 
     public void listImages(){
         for (int i = 0; i < imagesInDir.size(); i++) {
@@ -164,6 +125,8 @@ public class DataManager{
             System.out.println("["+humanIndex+"] | "+image.getName()+" | "+image.getTags());
         }
     }
+
+
 
     public void listSearchResults(String[] tags){
         List<IndexedImage> results=searchForImages(tags);
@@ -174,6 +137,8 @@ public class DataManager{
             if (results.contains(image)) System.out.println("["+humanIndex+"] | "+image.getName()+" | "+image.getTags());
         }
     }
+
+
 
     List<IndexedImage> searchForImages(String[] tags){
         String[] usableSearchTags=sanitizeTags(tags);
@@ -198,9 +163,6 @@ public class DataManager{
 
 
 
-
-
-
     public void showImageInViewer(IndexedImage image){
         try {
             Desktop.getDesktop().open(image.getImageFile());
@@ -211,6 +173,7 @@ public class DataManager{
     }
 
 
+
     public void showImageTags(int positionInList){
         IndexedImage targetImage=imagesInDir.get(positionInList);
         System.out.println(targetImage.getTags().isEmpty()?"No tags associated":"Current tags:");
@@ -219,48 +182,24 @@ public class DataManager{
         }
     }
 
+
+
     public void associateImageWithTags(int imagePos,String rawTags){
         String[] sanitizedTags=sanitizeTags(rawTags.split(",",0));
         IndexedImage targetImage=imagesInDir.get(imagePos);
         for (String tag:
              sanitizedTags) {
             if (tag.charAt(0)=='-') {
-                removeTag(targetImage, tag);
+                dbio.removeTag(targetImage, tag);
             }
             else if (!targetImage.getTags().contains(tag) && (!tag.equals("") || !tag.equals(" "))){
                 targetImage.addTag(tag);
             }
         }
-        writeTagsToDb(targetImage);
+        dbio.writeTagsToDb(targetImage);
     }
 
-    private void removeTag(IndexedImage targetImage,String removedTag){
-        removedTag=removedTag.replace("-","");
-        try{
-            dbio.beginTransaction();
-            dbio.removeTagFromImage(targetImage.getId(),removedTag);
-            dbio.commitTransaction(targetImage);
-            targetImage.removeTag(removedTag);
-        }
-        catch (SQLException e){
-            dbio.rollbackTransaction(targetImage);
-        }
 
-    }
-
-    private void writeTagsToDb(IndexedImage targetImage){
-        try{
-            dbio.beginTransaction();
-            dbio.associateTagsToImage(targetImage);
-            dbio.commitTransaction(targetImage);
-        }
-        catch (SQLException sqle){
-            dbio.rollbackTransaction(targetImage);
-            System.out.println(sqle.getMessage());
-            sqle.printStackTrace();
-            System.out.println("could not write tags to database...");
-        }
-    }
 
     String[] sanitizeTags(String[] separatedTags){
         for (int i = 0; i < separatedTags.length; i++) {
@@ -270,77 +209,33 @@ public class DataManager{
 
     }
 
-    public void somethingWrong(){
-        dbio.closeConnection();
-    }
-
-    public void tearDown(){
-        dbio.closeConnection();
-        dbio.updateDbHashAndWrite();
-    }
-
-
-    public int amountOfDuplicates(){
-        try{
-            String sqlEncontrarDuplicado="select COUNT(nombre_duplicado) as total from duplicado;";
-            ResultSet resultado=dbio.executeQueryStatement(sqlEncontrarDuplicado);
-            if (resultado.next()){
-                return resultado.getInt("total");
-            }
-
-        }
-        catch (SQLException e){
-            return -1;
-        }
-        return -1;
-    }
-
 
 
     public boolean isRecursiveMode() {
         return recursiveMode;
     }
 
+
+
     public void setRecursiveMode(boolean recursiveMode) {
         this.recursiveMode = recursiveMode;
     }
 
 
-    public static void hashSetImage(IndexedImage image) {
-        lock.lock();
-        try{
-            image.setHash(calculateHash(null));
-        } finally {
-            lock.unlock();
-        }
 
+    public void somethingWrong(){
+        dbio.somethingWrong();
     }
 
-    public static String hashFile(File file){
-        try {
-            byte[] fileBytes = Files.readAllBytes(file.toPath());
-            return calculateHash(fileBytes);
-        }
-        catch (IOException e) {
-            return "";
-        }
+
+
+    public void tearDown(){
+        dbio.tearDown();
     }
 
-    private static String calculateHash(byte[] fileBytes) {
-        if (hashCalculator == null) initMessageDigest();
-        byte[] hashBytes = hashCalculator.digest(fileBytes);
-        return new BigInteger(1, hashBytes).toString(16);
 
-    }
 
-    private static void initMessageDigest(){
-        try {
-            hashCalculator= MessageDigest.getInstance("SHA-256");
-        }
-        catch (NoSuchAlgorithmException nsa){
-
-            System.err.println("SHA-256 no parece estar disponible en esta plataforma. No se puede continuar.");
-            System.exit(1);
-        }
+    public int amountOfDuplicates(){
+        return dbio.amountOfDuplicates();
     }
 }

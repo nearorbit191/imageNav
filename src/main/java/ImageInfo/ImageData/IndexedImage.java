@@ -1,5 +1,7 @@
 package ImageInfo.ImageData;
 
+import Housekeeping.HashCalculator;
+
 import java.io.File;
 import java.io.IOException;
 import java.math.BigInteger;
@@ -10,11 +12,12 @@ import java.util.Arrays;
 
 public class IndexedImage {
 
-    public boolean  previouslyInDb,isDuplicate;
-    public boolean confirmedImage;
-    private String hash, nombreArchivo,path;
+    private boolean  previouslyInDb;
+    private boolean isDuplicate;
+    private boolean confirmedImage;
+    private final String hash, nombreArchivo,path;
     private int id;
-    public File imageFile;
+    private final File imageFile;
     private ArrayList<String> tags;
 
     //public byte[] fileBytes;
@@ -27,16 +30,7 @@ public class IndexedImage {
         this.path = imageFile.getParent();
         this.confirmedImage=false;
         this.tags=new ArrayList<>();
-        //confirmAsImage();
-
-    }
-
-    public IndexedImage(String path, String nombreArchivo) {
-        this.path = path;
-        this.nombreArchivo = nombreArchivo;
-        this.confirmedImage=false;
-        this.tags=new ArrayList<>();
-        createImageFile();
+        this.hash= HashCalculator.hashImage(imageFile);
         //confirmAsImage();
 
     }
@@ -44,17 +38,8 @@ public class IndexedImage {
 
 
 
-    //pensado al crear desde una base de datos
-    public IndexedImage(String hash, String path, String nombreArchivo, ArrayList<String> tags) {
-        this.previouslyInDb =true;
-        this.hash = hash;
-        this.path = path;
-        this.nombreArchivo = nombreArchivo;
-        this.tags = tags;
-        this.confirmedImage=true;
-        createImageFile();
 
-    }
+
 
     private void confirmAsImage() {
         try {
@@ -77,7 +62,6 @@ public class IndexedImage {
         for (MagicNumbers number:
                 MagicNumbers.values()) {
             if (hexFileBytes.contains(number.magicValues)){
-                //System.out.println("matched: "+number+" ("+nombreArchivo+")");
                 confirmedImage=true;
                 break;
             }
@@ -88,22 +72,14 @@ public class IndexedImage {
     }
 
 
-    private void createImageFile() {
-        this.imageFile = new File(path+ nombreArchivo);
-        System.out.println("imageFile = " + path+ nombreArchivo);
+    public boolean wasPreviouslyInDb() {
+        return previouslyInDb;
     }
-
-
-
-
 
     public String getHash() {
         return hash;
     }
 
-    //public byte[] getFileBytes() {
-    //    return fileBytes;
-    //}
 
     public File getImageFile() {
         return imageFile;
@@ -115,10 +91,6 @@ public class IndexedImage {
 
     public String getPath() {
         return path;
-    }
-
-    public void setHash(String hash) {
-        this.hash = hash;
     }
 
     public void addTag(String newTag){
@@ -135,6 +107,14 @@ public class IndexedImage {
 
     public void setId(int id) {
         this.id = id;
+    }
+
+    public boolean isDuplicate() {
+        return isDuplicate;
+    }
+
+    public void setDuplicate(boolean duplicate) {
+        isDuplicate = duplicate;
     }
 
     public int getId() {

@@ -14,6 +14,11 @@ public class NavLogger {
         logger.info("SUCCESS: "+message);
     }
 
+    public static void logWarning(String message){
+        Logger logger= LogManager.getLogger();
+        logger.warn(message);
+    }
+
     public static void logError(String message){
         Logger logger= LogManager.getLogger();
         logger.error(message);
