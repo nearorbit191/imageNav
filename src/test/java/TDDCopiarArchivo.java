@@ -30,7 +30,7 @@ class TDDCopiarArchivo {
     @BeforeEach
     void setUp() {
         try {
-
+            Files.createDirectories(Path.of(imagesDirectory+"nueva/"));
             Files.deleteIfExists(Path.of(imagesDirectory+"nice.db"));
             Files.deleteIfExists(Path.of(imagesDirectory+"db.check"));
             for (File archivo:
