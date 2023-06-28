@@ -9,6 +9,8 @@ import ImageInfo.ImageData.IndexedImage;
 import java.awt.*;
 import java.io.File;
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -238,4 +240,17 @@ public class DataManager{
     public int amountOfDuplicates(){
         return dbio.amountOfDuplicates();
     }
+
+    public void copiarArchivo(int numeroArchivo,String rutaDestino,String nombreArchivo) throws IllegalArgumentException{
+        IndexedImage imagenInteres=imagesInDir.get(numeroArchivo);
+        if (new File(rutaDestino+nombreArchivo).exists()) throw new IllegalArgumentException("archivo existe");
+        try{
+            Files.copy(Path.of(imagenInteres.getImageFile().getPath()),Path.of(rutaDestino+nombreArchivo));
+        }
+        catch (IOException ioex){
+            ioex.getMessage();
+
+        }
+    }
+
 }

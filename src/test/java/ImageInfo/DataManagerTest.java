@@ -26,6 +26,23 @@ class DataManagerTest {
 
     @BeforeEach
     void setUp() {
+        try {
+            for (File file :
+                    new File(imagesDirectory + "copias").listFiles()) {
+                if (file.isDirectory()) {
+                    for (File sfile:
+                         file.listFiles()) {
+                        Files.deleteIfExists(sfile.toPath());
+                    }
+                    continue;
+                }
+                Files.deleteIfExists(file.toPath());
+
+            }
+        }
+        catch (Exception e){
+
+        }
         dataMan=new DataManager(imagesDirectory);
         dataMan.readDirectoryInit();
 
